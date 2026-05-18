@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtomGuard Twin - Nuclear Safety Monitoring</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="top-nav glass-panel">
+            <div class="logo">
+                <i class="fa-solid fa-atom pulse-icon text-accent"></i>
+                <h1>AtomGuard <span>Twin</span></h1>
+            </div>
+            <div class="header-stats">
+                <div class="status-badge" id="system-status-badge">
+                    <span class="status-dot safe"></span>
+                    <span class="status-text">System Normal</span>
+                </div>
+                <div class="time-display" id="clock">00:00:00</div>
+            </div>
+        </header>
+
+        <div class="main-content grid-layout">
+            
+            <!-- LEFT COLUMN: Controls & Robot -->
+            <aside class="sidebar-left">
+                <div class="glass-panel section-card">
+                    <h2><i class="fa-solid fa-robot"></i> Autonomous Robot</h2>
+                    <div class="robot-info">
+                        <div class="info-row">
+                            <span>Status:</span>
+                            <span id="robot-status-text" class="text-safe">Patrolling</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Current Zone:</span>
+                            <span id="robot-zone-text">Corridors</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Battery:</span>
+                            <span>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill safe-bg" style="width: 87%;"></div></div>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel section-card">
+                    <h2><i class="fa-solid fa-brain"></i> AI Logic Engine</h2>
+                    <div class="ai-info">
+                        <div class="info-row">
+                            <span>Overall Risk Level:</span>
+                            <span id="risk-level-badge" class="risk-badge low">LOW</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Failure Probability:</span>
+                            <span id="failure-prob">2.4%</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Maintenance:</span>
+                            <span id="maintenance-req">No</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel section-card simulation-controls">
+                    <h2><i class="fa-solid fa-sliders"></i> Manual Override</h2>
+                    <p class="text-muted text-sm">Input exact values to test AI & Robot response.</p>
+                    
+                    <div class="input-group">
+                        <label>Temperature (&deg;C)</label>
+                        <div class="flex-row">
+                            <input type="number" id="input-temp" placeholder="e.g. 350" step="0.1">
+                            <button class="btn btn-warning btn-sm" onclick="setSensor('temperature', 'input-temp')">Set</button>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Radiation (mSv/h)</label>
+                        <div class="flex-row">
+                            <input type="number" id="input-rad" placeholder="e.g. 50" step="0.01">
+                            <button class="btn btn-danger btn-sm" onclick="setSensor('radiation', 'input-rad')">Set</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Vibration (mm/s)</label>
+                        <div class="flex-row">
+                            <input type="number" id="input-vib" placeholder="e.g. 8.0" step="0.1">
+                            <button class="btn btn-accent btn-sm" onclick="setSensor('vibration', 'input-vib')">Set</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Pressure (MPa)</label>
+                        <div class="flex-row">
+                            <input type="number" id="input-press" placeholder="e.g. 12.0" step="0.1">
+                            <button class="btn btn-info btn-sm" onclick="setSensor('pressure', 'input-press')">Set</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline" onclick="resetSensors()" style="margin-top: 0.5rem;">
+                        <i class="fa-solid fa-rotate-left"></i> Reset to Normal
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MIDDLE COLUMN: Digital Twin Map -->
+            <main class="center-stage">
+                <div class="glass-panel map-container">
+                    <div class="map-header">
+                        <h2>Digital Twin Visualization</h2>
+                        <div class="map-legend">
+                            <span class="legend-item"><span class="box bg-reactor"></span> Reactor</span>
+                            <span class="legend-item"><span class="box bg-cooling"></span> Cooling</span>
+                            <span class="legend-item"><span class="box bg-waste"></span> Waste Storage</span>
+                        </div>
+                    </div>
+                    <div class="facility-map" id="facility-map">
+                        <!-- Zones -->
+                        <div class="zone" id="zone-reactor" data-zone="Reactor">
+                            <div class="zone-label">Reactor Core</div>
+                            <div class="heatmap-overlay" id="heatmap-reactor"></div>
+                        </div>
+                        <div class="zone" id="zone-cooling" data-zone="Cooling System">
+                            <div class="zone-label">Cooling System</div>
+                            <div class="heatmap-overlay" id="heatmap-cooling"></div>
+                        </div>
+                        <div class="zone" id="zone-waste" data-zone="Waste Storage">
+                            <div class="zone-label">Waste Storage</div>
+                            <div class="heatmap-overlay" id="heatmap-waste"></div>
+                        </div>
+                        
+                        <!-- Connecting Corridors -->
+                        <div class="corridor" id="corridor-1"></div>
+                        <div class="corridor" id="corridor-2"></div>
+
+                        <!-- Robot Marker -->
+                        <div class="robot-marker" id="robot-marker">
+                            <div class="robot-pulse"></div>
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel alerts-panel">
+                    <h2><i class="fa-solid fa-bell"></i> Live Alerts</h2>
+                    <ul class="alerts-list" id="alerts-list">
+                        <!-- Dynamic alerts will be appended here -->
+                    </ul>
+                </div>
+            </main>
+
+            <!-- RIGHT COLUMN: Sensors & Charts -->
+            <aside class="sidebar-right">
+                <div class="glass-panel section-card">
+                    <h2>Live Sensors</h2>
+                    <div class="sensor-grid">
+                        <div class="sensor-card" id="sensor-temp">
+                            <div class="sensor-icon text-warning"><i class="fa-solid fa-temperature-half"></i></div>
+                            <div class="sensor-data">
+                                <div class="sensor-label">Temperature</div>
+                                <div class="sensor-value"><span id="val-temp">72.5</span> &deg;C</div>
+                            </div>
+                        </div>
+                        <div class="sensor-card" id="sensor-rad">
+                            <div class="sensor-icon text-danger"><i class="fa-solid fa-radiation"></i></div>
+                            <div class="sensor-data">
+                                <div class="sensor-label">Radiation</div>
+                                <div class="sensor-value"><span id="val-rad">12.4</span> mSv/h</div>
+                            </div>
+                        </div>
+                        <div class="sensor-card" id="sensor-vib">
+                            <div class="sensor-icon text-accent"><i class="fa-solid fa-wave-square"></i></div>
+                            <div class="sensor-data">
+                                <div class="sensor-label">Vibration</div>
+                                <div class="sensor-value"><span id="val-vib">2.1</span> mm/s</div>
+                            </div>
+                        </div>
+                        <div class="sensor-card" id="sensor-press">
+                            <div class="sensor-icon text-info"><i class="fa-solid fa-gauge"></i></div>
+                            <div class="sensor-data">
+                                <div class="sensor-label">Pressure</div>
+                                <div class="sensor-value"><span id="val-press">101.3</span> kPa</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel section-card chart-card">
+                    <h2>Radiation Trend</h2>
+                    <div class="chart-wrapper">
+                        <canvas id="radiationChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-panel section-card chart-card">
+                    <h2>Temperature Trend</h2>
+                    <div class="chart-wrapper">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
