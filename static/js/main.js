@@ -36,11 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const elTemp = document.getElementById('val-temp');
     const elRad = document.getElementById('val-rad');
-    const elVib = document.getElementById('val-vib');
+    const elHumidity = document.getElementById('val-humidity');
     const elPress = document.getElementById('val-press');
     const cardTemp = document.getElementById('sensor-temp');
     const cardRad = document.getElementById('sensor-rad');
-    const cardVib = document.getElementById('sensor-vib');
+    const cardHumidity = document.getElementById('sensor-humidity');
     const cardPress = document.getElementById('sensor-press');
     
     const elRisk = document.getElementById('risk-level-badge');
@@ -54,10 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const systemStatusBadge = document.getElementById('system-status-badge');
     
     let thresholds = {
-        temperature: { warning: 320, critical: 390 },
-        radiation: { warning: 0.1, critical: 1.0 },
-        vibration: { warning: 4.0, critical: 7.0 },
-        pressure: { warning_low: 14.5, warning_high: 16.0, critical_low: 14.0, critical_high: 16.5 }
+        temperature: { warning: 315, critical: 350 },
+        radiation: { warning: 1.5, critical: 5.0 },
+        humidity: { warning: 65.0, critical: 75.0 },
+        pressure: { warning: 115.0, critical: 125.0 }
     };
 
     async function loadThresholds() {
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             robotMarker.style.borderColor = 'var(--danger)';
             robotMarker.style.boxShadow = '0 0 15px var(--danger)';
             robotMarker.style.color = 'var(--danger)';
-        } else if (newStatus.includes('Inspecting')) {
+        } else if (newStatus.includes('Inspecting') || newStatus.includes('Warning') || newStatus.includes('Responding')) {
             robotStatusText.classList.add('text-warning');
             robotMarker.style.borderColor = 'var(--warning)';
             robotMarker.style.boxShadow = '0 0 15px var(--warning)';
@@ -125,8 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Sensors
             elTemp.textContent = data.temperature.toFixed(1);
-            elRad.textContent = data.radiation.toFixed(1);
-            elVib.textContent = data.vibration.toFixed(2);
+            elRad.textContent = data.radiation.toFixed(2);
+            elHumidity.textContent = data.humidity.toFixed(1);
             elPress.textContent = data.pressure.toFixed(1);
 
             // Charts
@@ -148,8 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             cardTemp.className = `sensor-card ${data.temperature > thresholds.temperature.warning ? (data.temperature > thresholds.temperature.critical ? 'glow-critical' : 'glow-warning') : ''}`;
             cardRad.className = `sensor-card ${data.radiation > thresholds.radiation.warning ? (data.radiation > thresholds.radiation.critical ? 'glow-critical' : 'glow-warning') : ''}`;
-            cardVib.className = `sensor-card ${data.vibration > thresholds.vibration.warning ? (data.vibration > thresholds.vibration.critical ? 'glow-critical' : 'glow-warning') : ''}`;
-            cardPress.className = `sensor-card ${((data.pressure > thresholds.pressure.warning_high || data.pressure < thresholds.pressure.warning_low) ? ((data.pressure > thresholds.pressure.critical_high || data.pressure < thresholds.pressure.critical_low) ? 'glow-critical' : 'glow-warning') : '')}`;
+            cardHumidity.className = `sensor-card ${data.humidity > thresholds.humidity.warning ? (data.humidity > thresholds.humidity.critical ? 'glow-critical' : 'glow-warning') : ''}`;
+            cardPress.className = `sensor-card ${data.pressure > thresholds.pressure.warning ? (data.pressure > thresholds.pressure.critical ? 'glow-critical' : 'glow-warning') : ''}`;
 
             heatmapReactor.className = analysis.glowingZones.reactor ? 'heatmap-overlay active-leak' : 'heatmap-overlay';
             heatmapCooling.className = analysis.glowingZones.cooling ? 'heatmap-overlay active-heat' : 'heatmap-overlay';
@@ -175,18 +175,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 systemStatusBadge.innerHTML = `<span class="status-dot safe"></span><span class="status-text">System Normal</span>`;
             }
 
-            // Robot
-            if (analysis.riskLevel === 'CRITICAL' || analysis.riskLevel === 'HIGH') {
+            // Robot behavior: Navigate only on warning; Evacuate/Standby on critical
+            if (analysis.hasCritical) {
+                if (currentRobotZone !== 'Corridors') {
+                    updateRobotStatus('Evacuating to Safe Zone', true);
+                    moveRobotTo('Corridors');
+                    setTimeout(() => updateRobotStatus('Standby (Critical Hazard)', true), 2000);
+                } else {
+                    // Stay in Safe Zone but warn
+                    if (robotStatusText.textContent !== 'Standby (Critical Hazard)' && !robotStatusText.textContent.includes('Evacuating')) {
+                        updateRobotStatus('Standby (Critical Hazard)', true);
+                    }
+                }
+            } else if (analysis.hasWarning) {
                 if (currentRobotZone !== analysis.targetZone) {
-                    updateRobotStatus(`Responding to Emergency`, true);
+                    updateRobotStatus(`Responding to Warning`, false);
                     moveRobotTo(analysis.targetZone);
                     setTimeout(() => updateRobotStatus(`Inspecting ${analysis.targetZone}`, false), 2000);
+                } else {
+                    if (!robotStatusText.textContent.includes('Responding') && !robotStatusText.textContent.includes('Inspecting')) {
+                        updateRobotStatus(`Inspecting ${analysis.targetZone}`, false);
+                    }
                 }
             } else {
                 if (currentRobotZone !== 'Corridors') {
                     updateRobotStatus('Returning to Patrol');
                     moveRobotTo('Corridors');
                     setTimeout(() => updateRobotStatus('Patrolling'), 2000);
+                } else {
+                    if (robotStatusText.textContent !== 'Patrolling' && !robotStatusText.textContent.includes('Returning')) {
+                        updateRobotStatus('Patrolling');
+                    }
                 }
             }
 
@@ -201,25 +220,56 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('clock').textContent = new Date().toLocaleTimeString();
     }, 1000);
 
-    window.setSensor = function(sensorName, inputId) {
-        const val = document.getElementById(inputId).value;
+    const ALERT_RANGES = {
+        temperature: {
+            warning: [316.0, 349.0],
+            critical: [351.0, 380.0]
+        },
+        radiation: {
+            warning: [1.6, 4.9],
+            critical: [5.1, 15.0]
+        },
+        humidity: {
+            warning: [66.0, 74.0],
+            critical: [76.0, 95.0]
+        },
+        pressure: {
+            warning: [116.0, 124.0],
+            critical: [126.0, 145.0]
+        }
+    };
+
+    window.triggerAlert = function(sensorName, alertType) {
+        const range = ALERT_RANGES[sensorName]?.[alertType];
+        if (!range) {
+            console.error(`Invalid sensor or alert type: ${sensorName}, ${alertType}`);
+            return;
+        }
+
+        const [min, max] = range;
+        const randomVal = Math.random() * (max - min) + min;
+        
+        // 2 decimals for radiation, 1 decimal for others
+        const decimals = (sensorName === 'radiation') ? 2 : 1;
+        const val = parseFloat(randomVal.toFixed(decimals));
+
+        console.log(`Triggering override for ${sensorName} (${alertType}): generated value = ${val}`);
+
         fetch('/api/set_sensor', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sensor: sensorName, value: val })
         })
         .then(res => res.json())
-        .then(data => console.log('Sensor updated:', data));
+        .then(data => console.log('Sensor override successful:', data))
+        .catch(err => console.error('Failed to override sensor:', err));
     };
 
     window.resetSensors = function() {
-        document.getElementById('input-temp').value = '';
-        document.getElementById('input-rad').value = '';
-        document.getElementById('input-vib').value = '';
-        document.getElementById('input-press').value = '';
-        
+        console.log('Resetting all sensor overrides...');
         fetch('/api/scenario/normal', { method: 'POST' })
             .then(res => res.json())
-            .then(data => console.log('Sensors reset to normal:', data));
+            .then(data => console.log('Sensors reset to normal baseline:', data))
+            .catch(err => console.error('Failed to reset sensors:', err));
     };
 });

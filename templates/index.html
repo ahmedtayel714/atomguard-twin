@@ -74,37 +74,37 @@
 
                 <div class="glass-panel section-card simulation-controls">
                     <h2><i class="fa-solid fa-sliders"></i> Manual Override</h2>
-                    <p class="text-muted text-sm">Input exact values to test AI & Robot response.</p>
+                    <p class="text-muted text-sm">Select alert levels to test AI & Robot response.</p>
                     
-                    <div class="input-group">
-                        <label>Temperature (&deg;C)</label>
+                    <div class="simulation-group">
+                        <label class="simulation-label">Temperature (&deg;C)</label>
                         <div class="flex-row">
-                            <input type="number" id="input-temp" placeholder="e.g. 350" step="0.1">
-                            <button class="btn btn-warning btn-sm" onclick="setSensor('temperature', 'input-temp')">Set</button>
+                            <button class="btn btn-warning btn-sm" onclick="triggerAlert('temperature', 'warning')">Warning Alert</button>
+                            <button class="btn btn-danger btn-sm" onclick="triggerAlert('temperature', 'critical')">Critical Alert</button>
                         </div>
                     </div>
                     
-                    <div class="input-group">
-                        <label>Radiation (mSv/h)</label>
+                    <div class="simulation-group">
+                        <label class="simulation-label">Radiation (mSv/h)</label>
                         <div class="flex-row">
-                            <input type="number" id="input-rad" placeholder="e.g. 50" step="0.01">
-                            <button class="btn btn-danger btn-sm" onclick="setSensor('radiation', 'input-rad')">Set</button>
+                            <button class="btn btn-warning btn-sm" onclick="triggerAlert('radiation', 'warning')">Warning Alert</button>
+                            <button class="btn btn-danger btn-sm" onclick="triggerAlert('radiation', 'critical')">Critical Alert</button>
                         </div>
                     </div>
 
-                    <div class="input-group">
-                        <label>Vibration (mm/s)</label>
+                    <div class="simulation-group">
+                        <label class="simulation-label">Humidity (%)</label>
                         <div class="flex-row">
-                            <input type="number" id="input-vib" placeholder="e.g. 8.0" step="0.1">
-                            <button class="btn btn-accent btn-sm" onclick="setSensor('vibration', 'input-vib')">Set</button>
+                            <button class="btn btn-warning btn-sm" onclick="triggerAlert('humidity', 'warning')">Warning Alert</button>
+                            <button class="btn btn-danger btn-sm" onclick="triggerAlert('humidity', 'critical')">Critical Alert</button>
                         </div>
                     </div>
 
-                    <div class="input-group">
-                        <label>Pressure (MPa)</label>
+                    <div class="simulation-group">
+                        <label class="simulation-label">Pressure (kPa)</label>
                         <div class="flex-row">
-                            <input type="number" id="input-press" placeholder="e.g. 12.0" step="0.1">
-                            <button class="btn btn-info btn-sm" onclick="setSensor('pressure', 'input-press')">Set</button>
+                            <button class="btn btn-warning btn-sm" onclick="triggerAlert('pressure', 'warning')">Warning Alert</button>
+                            <button class="btn btn-danger btn-sm" onclick="triggerAlert('pressure', 'critical')">Critical Alert</button>
                         </div>
                     </div>
 
@@ -179,11 +179,11 @@
                                 <div class="sensor-value"><span id="val-rad">12.4</span> mSv/h</div>
                             </div>
                         </div>
-                        <div class="sensor-card" id="sensor-vib">
-                            <div class="sensor-icon text-accent"><i class="fa-solid fa-wave-square"></i></div>
+                        <div class="sensor-card" id="sensor-humidity">
+                            <div class="sensor-icon text-accent"><i class="fa-solid fa-droplet"></i></div>
                             <div class="sensor-data">
-                                <div class="sensor-label">Vibration</div>
-                                <div class="sensor-value"><span id="val-vib">2.1</span> mm/s</div>
+                                <div class="sensor-label">Humidity</div>
+                                <div class="sensor-value"><span id="val-humidity">50.0</span> %</div>
                             </div>
                         </div>
                         <div class="sensor-card" id="sensor-press">

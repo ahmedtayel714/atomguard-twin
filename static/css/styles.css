@@ -242,6 +242,30 @@ body {
     border-color: var(--accent);
 }
 
+/* Simulation Controls Alert Buttons */
+.simulation-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+}
+
+.simulation-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.simulation-group .flex-row button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.55rem 0.25rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1200px) {
     .main-content {
@@ -336,6 +360,14 @@ body {
     opacity: 0.5;
     background: radial-gradient(circle, rgba(245, 158, 11, 0.8) 0%, rgba(245, 158, 11, 0) 80%);
     animation: throb 3s infinite;
+}
+
+/* Visual state when a zone is isolated/disconnected due to critical alert */
+.heatmap-overlay.disconnected {
+    opacity: 0.9 !important;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(30,30,30,0.6));
+    border: 2px dashed rgba(255,255,255,0.08);
+    box-shadow: 0 0 30px rgba(239,68,68,0.6) inset;
 }
 
 #zone-reactor { top: 20%; left: 10%; width: 35%; height: 60%; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.3); }

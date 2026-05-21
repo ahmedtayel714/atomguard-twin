@@ -2,6 +2,8 @@ from flask import Flask, render_template, jsonify, request
 import time
 import random
 from datetime import datetime
+import csv
+import os
 
 app = Flask(__name__)
 
@@ -9,10 +11,10 @@ app = Flask(__name__)
 class AILogicEngine:
     def __init__(self):
         self.thresholds = {
-            'temperature': {'warning': 315, 'critical': 350},
-            'radiation': {'warning': 0.1, 'critical': 1.0},
-            'vibration': {'warning': 4.0, 'critical': 7.0},
-            'pressure': {'warning_low': 14.5, 'warning_high': 16.0, 'critical_low': 14.0, 'critical_high': 16.5}
+            'temperature': {'warning': 315.0, 'critical': 350.0},
+            'radiation': {'warning': 1.5, 'critical': 5.0},
+            'humidity': {'warning': 65.0, 'critical': 75.0},
+            'pressure': {'warning': 115.0, 'critical': 125.0}
         }
         self.active_alerts = set()
         self.alert_history = []
@@ -38,53 +40,67 @@ class AILogicEngine:
         is_maintenance_req = False
         target_zone = 'Corridors'
         glowing_zones = {'reactor': False, 'cooling': False, 'waste': False}
+        has_critical = False
+        has_warning = False
 
-        # 1. Radiation
+        # Radiation
         if data['radiation'] > self.thresholds['radiation']['critical']:
             risk_score += 3
             target_zone = 'Reactor'
             glowing_zones['reactor'] = True
+            has_critical = True
             self.add_alert('Critical radiation leak detected in Reactor Core!', 'critical')
         elif data['radiation'] > self.thresholds['radiation']['warning']:
             risk_score += 1
             target_zone = 'Waste Storage'
             glowing_zones['waste'] = True
+            has_warning = True
             self.add_alert('Elevated radiation levels observed.', 'warning')
 
-        # 2. Temperature
+        # Temperature
         if data['temperature'] > self.thresholds['temperature']['critical']:
             risk_score += 3
             target_zone = 'Cooling System'
             glowing_zones['cooling'] = True
+            has_critical = True
             self.add_alert('Cooling system critical overheating!', 'critical')
             is_maintenance_req = True
         elif data['temperature'] > self.thresholds['temperature']['warning']:
             risk_score += 1
             target_zone = 'Cooling System'
             glowing_zones['cooling'] = True
+            has_warning = True
             self.add_alert('Temperature rising in cooling infrastructure.', 'warning')
 
-        # 3. Pressure
-        if data['pressure'] > self.thresholds['pressure']['critical_high'] or data['pressure'] < self.thresholds['pressure']['critical_low']:
+        # Pressure
+        if data['pressure'] > self.thresholds['pressure']['critical']:
             risk_score += 3
             target_zone = 'Reactor'
             glowing_zones['reactor'] = True
+            has_critical = True
             self.add_alert('Critical pressure anomaly detected!', 'critical')
             is_maintenance_req = True
-        elif data['pressure'] > self.thresholds['pressure']['warning_high'] or data['pressure'] < self.thresholds['pressure']['warning_low']:
+        elif data['pressure'] > self.thresholds['pressure']['warning']:
             risk_score += 1
+            target_zone = 'Reactor'
+            glowing_zones['reactor'] = True
+            has_warning = True
             self.add_alert('Abnormal pressure levels detected.', 'warning')
 
-        # 3. Vibration
-        if data['vibration'] > self.thresholds['vibration']['critical']:
+        # Humidity (Replaced Vibration)
+        if data['humidity'] > self.thresholds['humidity']['critical']:
             risk_score += 3
             target_zone = 'Cooling System'
             glowing_zones['cooling'] = True
-            self.add_alert('Severe structural vibration detected! Imminent failure risk.', 'critical')
+            has_critical = True
+            self.add_alert('Critical humidity level detected! Imminent failure risk.', 'critical')
             is_maintenance_req = True
-        elif data['vibration'] > self.thresholds['vibration']['warning']:
+        elif data['humidity'] > self.thresholds['humidity']['warning']:
             risk_score += 1
-            self.add_alert('Abnormal vibration patterns detected.', 'warning')
+            target_zone = 'Cooling System'
+            glowing_zones['cooling'] = True
+            has_warning = True
+            self.add_alert('Abnormal humidity level detected.', 'warning')
 
         # Determine Risk Level
         risk_level = 'LOW'
@@ -111,20 +127,20 @@ class AILogicEngine:
             'maintenanceRequired': 'Yes (Immediate)' if is_maintenance_req else 'No',
             'alerts': self.alert_history,
             'targetZone': target_zone,
-            'glowingZones': glowing_zones
+            'glowingZones': glowing_zones,
+            'hasCritical': has_critical,
+            'hasWarning': has_warning
         }
 
-import csv
-import os
 
 # --- Data Generator ---
 class DataGenerator:
     def __init__(self):
         self.baseline = {
-            'temperature': 290,
-            'radiation': 0.01,
-            'vibration': 1.0,
-            'pressure': 15.26
+            'temperature': 290.0,
+            'radiation': 0.1,
+            'humidity': 40.0,
+            'pressure': 100.0
         }
         self.scenario = 'normal'
         self.override = {}
@@ -141,7 +157,7 @@ class DataGenerator:
                     self.data_rows.append(row)
         else:
             print(f"Warning: {self.csv_file} not found. Generating dummy data.")
-            self.data_rows = [{'temperature': 300, 'radiation': 0.02, 'vibration': 2.5, 'pressure': 15.5}]
+            self.data_rows = [{'temperature': 300, 'radiation': 0.2, 'humidity': 45.0, 'pressure': 105.0}]
 
     def set_scenario(self, scenario_name):
         self.scenario = scenario_name
@@ -160,7 +176,7 @@ class DataGenerator:
         # Parse CSV values
         csv_temp = float(row.get('temperature', self.baseline['temperature']))
         csv_rad = float(row.get('radiation', self.baseline['radiation']))
-        csv_vib = float(row.get('vibration', self.baseline['vibration']))
+        csv_humid = float(row.get('humidity', self.baseline['humidity']))
         csv_press = float(row.get('pressure', self.baseline['pressure']))
         anomaly_flag = int(float(row.get('anomaly', 0))) if row.get('anomaly', '') != '' else 0
 
@@ -168,23 +184,23 @@ class DataGenerator:
         if self.scenario == 'normal' and anomaly_flag == 1:
             csv_temp = self.baseline['temperature']
             csv_rad = self.baseline['radiation']
-            csv_vib = self.baseline['vibration']
+            csv_humid = self.baseline['humidity']
             csv_press = self.baseline['pressure']
 
         data = {
             'temperature': self.override.get('temperature', csv_temp),
             'radiation': self.override.get('radiation', csv_rad),
-            'vibration': self.override.get('vibration', csv_vib),
+            'humidity': self.override.get('humidity', csv_humid),
             'pressure': self.override.get('pressure', csv_press)
         }
 
         # Apply manual scenario values when a scenario is active.
         if self.scenario == 'radiation':
-            data['radiation'] = self.override.get('radiation', max(csv_rad, 5.0))
+            data['radiation'] = self.override.get('radiation', max(csv_rad, 6.0))
         elif self.scenario == 'temperature':
             data['temperature'] = self.override.get('temperature', max(csv_temp, 330.0))
-        elif self.scenario == 'vibration':
-            data['vibration'] = self.override.get('vibration', max(csv_vib, 6.0))
+        elif self.scenario == 'humidity':
+            data['humidity'] = self.override.get('humidity', max(csv_humid, 76.0))
 
         # Analyze data
         analysis = self.ai.analyze(data)
@@ -196,7 +212,7 @@ class DataGenerator:
             'time': datetime.now().strftime('%H:%M:%S')
         }
         return state
-
+    
 generator = DataGenerator()
 
 # --- Routes ---
@@ -214,7 +230,7 @@ def get_thresholds():
 
 @app.route('/api/scenario/<scenario_name>', methods=['POST'])
 def trigger_scenario(scenario_name):
-    if scenario_name in ['normal', 'radiation', 'temperature', 'vibration']:
+    if scenario_name in ['normal', 'radiation', 'temperature', 'humidity']:
         generator.set_scenario(scenario_name)
         return jsonify({'status': 'success', 'scenario': scenario_name})
     return jsonify({'error': 'Invalid scenario'}), 400
